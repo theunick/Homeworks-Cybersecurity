@@ -1,0 +1,5 @@
+Algorithm,Avg_Encryption_us,Avg_Decryption_us,Min_Enc_us,Max_Enc_us,Min_Dec_us,Max_Dec_us
+AES-128-CTR + HMAC-SHA256,425.40,421.20,405,465,373,477
+ChaCha20 + HMAC-SHA256,682.60,684.00,607,760,606,746
+AES-128-GCM,109.60,107.20,91,165,89,156
+ChaCha20-Poly1305,511.80,492.60,499,532,447,516
