@@ -1,0 +1,484 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{float}
+
+% Page geometry
+\geometry{margin=2.5cm}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Nicolas Leone - 1986354}
+\lhead{Cybersecurity HW04}
+\cfoot{\thepage}
+
+% Code listing style
+\lstdefinestyle{cstyle}{
+    language=C,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{lightgray!10},
+    frame=single,
+    frameround=tttt,
+    breaklines=true,
+    breakatwhitespace=false,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b
+}
+
+\lstset{style=cstyle}
+
+% Bash listing style
+\lstdefinestyle{bashstyle}{
+    language=bash,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{red},
+    backgroundcolor=\color{lightgray!10},
+    frame=single,
+    frameround=tttt,
+    breaklines=true,
+    breakatwhitespace=false,
+    showstringspaces=false,
+    tabsize=4,
+    captionpos=b,
+    numbers=none
+}
+
+\title{Homework 04: Guidelines for the use of Age}
+\author{Nicolas Leone\\Student ID: 1986354\\Cybersecurity}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\clearpage
+
+\section{Introduction to Age}
+
+Age (Another Git Encryptor) is a modern, simple, and fast tool for encrypting and decrypting files from the terminal. Designed as a replacement for GPG for file encryption tasks, Age focuses on simplicity and ease of use while maintaining strong security guarantees. It can be quickly installed on all UNIX-based platforms such as macOS and Linux, and can also be used on Windows systems.
+
+The philosophy behind Age is to provide a minimalist, secure-by-default encryption tool that avoids the complexity and pitfalls that have plagued traditional encryption software. Unlike GPG, which offers numerous configuration options and supports various cryptographic algorithms, Age deliberately restricts its functionality to a carefully selected set of modern, peer-reviewed algorithms. This design choice reduces the attack surface and eliminates the risk of users inadvertently choosing weak or deprecated cryptographic primitives.
+
+The primary use of Age consists of encrypting and decrypting files through two main modes:
+\begin{itemize}
+    \item \textbf{Symmetric encryption}: Using a passphrase to protect files. This mode is ideal for personal use cases where you encrypt files for yourself or when you can securely share a passphrase with the intended recipient through an out-of-band channel.
+    \item \textbf{Public-key encryption}: Using recipient public keys for secure file sharing. This mode enables you to encrypt files for multiple recipients without requiring a shared secret, making it particularly useful in collaborative environments.
+\end{itemize}
+
+Age allows the encryption of input files or text obtained via standard input (keyboard) in either symmetric or asymmetric mode, returning the encrypted data via standard output or, if requested, by creating a file. This flexibility makes Age particularly well-suited for integration into automated workflows, shell scripts, and CI/CD pipelines.
+
+Age can be easily installed on different platforms:
+
+\textbf{macOS (using Homebrew):}
+\begin{lstlisting}[style=bashstyle]
+brew install age
+\end{lstlisting}
+
+\textbf{Linux (Ubuntu/Debian):}
+\begin{lstlisting}[style=bashstyle]
+sudo apt install age
+\end{lstlisting}
+
+\textbf{Windows (using Scoop):}
+\begin{lstlisting}[style=bashstyle]
+scoop install age
+\end{lstlisting}
+
+\textbf{Windows (using Chocolatey):}
+\begin{lstlisting}[style=bashstyle]
+choco install age.portable
+\end{lstlisting}
+
+\newpage
+
+\section{Cryptographic Algorithms in Age}
+
+\subsection{Symmetric Encryption: ChaCha20-Poly1305}
+
+For symmetric encryption, Age uses the ChaCha20 and Poly1305 algorithms, which together form an AEAD (Authenticated Encryption with Associated Data) scheme providing both confidentiality and authentication.
+
+\subsubsection{ChaCha20}
+
+ChaCha20 is a stream cipher that uses 256-bit keys for encryption. Its operation is based on producing a continuous keystream of pseudo-random bits, which are XORed with the plaintext to produce the ciphertext.
+
+The keystream generation requires:
+\begin{itemize}
+    \item A 96-bit nonce (unique per encryption)
+    \item A 32-bit block counter
+    \item A 256-bit key derived from the user's passphrase using HKDF (HMAC-Based Key Derivation Function)
+\end{itemize}
+
+ChaCha20 executes 20 rounds of transformations on a $4 \times 4$ state matrix. The basic operation is the \textit{quarter round}, which performs additions, XORs, and rotations on four 32-bit words:
+
+\begin{enumerate}
+    \item $a \mathrel{+}= b$; $d \mathrel{\oplus}= a$; $d \mathrel{\ll}= 16$;
+    \item $c \mathrel{+}= d$; $b \mathrel{\oplus}= c$; $b \mathrel{\ll}= 12$;
+    \item $a \mathrel{+}= b$; $d \mathrel{\oplus}= a$; $d \mathrel{\ll}= 8$;
+    \item $c \mathrel{+}= d$; $b \mathrel{\oplus}= c$; $b \mathrel{\ll}= 7$;
+\end{enumerate}
+
+where ``$+$'' denotes addition modulo $2^{32}$, ``$\oplus$'' denotes XOR, and ``$\ll n$'' denotes left rotation by $n$ bits.
+
+The state is initialized with constants, the key, the counter, and the nonce. After 20 rounds (alternating between column and diagonal operations), the initial state is added back to produce the final keystream block.
+
+\subsubsection{Poly1305 Authentication}
+
+Poly1305 is a message authentication code (MAC) that produces a 128-bit authentication tag from the message and a 256-bit key. The key is divided into two parts: $r$ (used for polynomial evaluation) and $s$ (used for final masking).
+
+The algorithm operates as follows:
+\begin{enumerate}
+    \item Clamp $r$ by clearing specific bits to ensure security
+    \item Initialize accumulator $\text{Acc} = 0$ and set prime $P = 2^{130} - 5$
+    \item Process message in 16-byte blocks: $\text{Acc} = ((\text{Acc} + \text{block}) \cdot r) \bmod P$
+    \item Add $s$ to the accumulator and output the 128 least significant bits as the tag
+\end{enumerate}
+
+The combination of ChaCha20 for encryption and Poly1305 for authentication provides a fast, secure AEAD construction that is resistant to both passive and active attacks.
+
+\subsection{Public-Key Encryption: X25519}
+
+For public-key encryption, Age uses X25519 for key exchange. X25519 is based on elliptic curve Diffie-Hellman (ECDH) operations on Curve25519, defined by:
+
+\[
+y^2 = x^3 + 486662x^2 + x
+\]
+
+\subsubsection{Key Exchange Mechanism}
+
+X25519 leverages the commutative property of scalar multiplication on elliptic curves:
+
+\[
+k_b \cdot (k_a \cdot P) = k_a \cdot (k_b \cdot P)
+\]
+
+where $k_a$ and $k_b$ are 256-bit secret keys, and $P$ is a base point on the curve (conventionally $x = 9$).
+
+The key exchange process works as follows:
+\begin{enumerate}
+    \item Each party generates a random 256-bit secret key
+    \item Each computes their public key by scalar multiplication with the base point
+    \item Public keys are exchanged
+    \item Each party computes the shared secret using their secret key and the other party's public key
+\end{enumerate}
+
+In Age's implementation, a symmetric session key is generated using a CSPRNG, then this session key is encrypted using the shared secret derived from X25519. This approach allows multiple recipients: the session key is encrypted separately for each recipient's public key, while the actual file content is encrypted only once using the session key with ChaCha20-Poly1305.
+
+Age refers to public keys as \textbf{RECIPIENT} and private keys as \textbf{IDENTITY}, making the command-line interface intuitive and self-documenting.
+
+\newpage
+
+\section{Usage Guidelines for Engineering Students}
+
+\subsection{Symmetric Encryption with Passphrase}
+
+Symmetric encryption is useful when you want to encrypt files for your own use or when you can securely share a passphrase with the intended recipient.
+
+\subsubsection{Encrypting a File}
+
+To encrypt a file using a passphrase:
+
+\begin{lstlisting}[style=bashstyle, caption={Symmetric encryption with Age}]
+# Encrypt a file with a passphrase
+age --passphrase --output secure_document.txt.age document.txt
+
+# Age will prompt you to enter and confirm the passphrase
+\end{lstlisting}
+
+\textbf{Annotated example:}
+\begin{itemize}
+    \item \texttt{--passphrase}: Enables symmetric encryption mode
+    \item \texttt{--output secure\_document.txt.age}: Specifies the output encrypted file
+    \item \texttt{document.txt}: The input file to encrypt
+    \item Age will interactively ask for a passphrase (not shown in command history for security)
+\end{itemize}
+
+\subsubsection{Decrypting a File}
+
+To decrypt a file encrypted with a passphrase:
+
+\begin{lstlisting}[style=bashstyle, caption={Symmetric decryption with Age}]
+# Decrypt a file
+age --decrypt --output document.txt secure_document.txt.age
+
+# Age will prompt for the passphrase
+\end{lstlisting}
+
+\textbf{Note:} Age will automatically detect that the file was encrypted with a passphrase and prompt you accordingly.
+
+\subsubsection{Using Standard Input/Output}
+
+Age can work with pipes and standard streams:
+
+\begin{lstlisting}[style=bashstyle, caption={Encryption using pipes}]
+# Encrypt text from standard input
+echo "Secret message" | age --passphrase > message.age
+
+# Decrypt to standard output
+age --decrypt message.age
+
+# Encrypt multiple files into a tar archive
+tar czf - ~/Documents | age --passphrase --output backup.tar.gz.age
+\end{lstlisting}
+
+\subsection{Public-Key Encryption}
+
+Public-key encryption is ideal for sharing encrypted files with others without needing to exchange a passphrase. Each user has a key pair (private and public), and files are encrypted with the recipient's public key.
+
+\subsubsection{Generating a Key Pair}
+
+First, generate your own key pair:
+
+\begin{lstlisting}[style=bashstyle, caption={Key generation}]
+# Generate a new key pair
+age-keygen -o ~/.age/key.txt
+
+# The output will show:
+# Public key: age1qlrfls9rlkfe4kmgxvph5n2mpdz9pj9k6cr5ewqlc62gnv96jkvs4syy
+# (This is an example, your key will be different)
+\end{lstlisting}
+
+The generated file contains both the private key (starting with \texttt{AGE-SECRET-KEY-}) and the public key (starting with \texttt{age1}).
+
+\textbf{Example key file content:}
+\begin{lstlisting}[style=bashstyle]
+# created: 2024-11-17T12:00:00Z
+# public key: age1qlrfls9rlkfe4kmgxvph5n2mpdz9pj9k6cr5ewqlc62gnv96jkvs4syy
+AGE-SECRET-KEY-1PXEWMFV4RG98ZQ2JY4LF98VCZGELM3GQL76CT45MST4F5X6CR4Q4M2F7JU
+\end{lstlisting}
+
+\textbf{Important security practices:}
+\begin{itemize}
+    \item Keep the private key file (\texttt{key.txt}) secure and confidential
+    \item Set appropriate file permissions: \texttt{chmod 600 ~/.age/key.txt}
+    \item Share only the public key (the line starting with \texttt{age1}) with others
+    \item Consider backing up the private key in a secure location
+\end{itemize}
+
+\subsubsection{Encrypting for a Recipient}
+
+To encrypt a file for someone else, you need their public key:
+
+\begin{lstlisting}[style=bashstyle, caption={Public-key encryption}]
+# Encrypt a file for a single recipient
+age --recipient age1qlrfls9rlkfe4kmgxvph5n2mpdz9pj9k6cr5ewqlc62gnv96jkvs4syy \
+    --output project_report.pdf.age project_report.pdf
+
+# Encrypt for multiple recipients
+age --recipient age1qlrfls9rlkfe4kmgxvph5n2mpdz9pj9k6cr5ewqlc62gnv96jkvs4syy \
+    --recipient age1t90nl05gngh942zdkwwk3wrkgz87k2fctk5qcyxhka7ycucza3uqg39xrr \
+    --output shared_file.txt.age shared_file.txt
+\end{lstlisting}
+
+\textbf{Annotated example:}
+\begin{itemize}
+    \item \texttt{--recipient}: Specifies a recipient's public key (can be used multiple times)
+    \item When encrypting for multiple recipients, each can decrypt the file with their own private key
+    \item The file size increases minimally with additional recipients
+\end{itemize}
+
+\subsubsection{Decrypting a File}
+
+To decrypt a file sent to you:
+
+\begin{lstlisting}[style=bashstyle, caption={Public-key decryption}]
+# Decrypt using your identity file
+age --decrypt --identity ~/.age/key.txt \
+    --output project_report.pdf project_report.pdf.age
+
+# Decrypt from standard input
+cat encrypted_file.age | age --decrypt --identity ~/.age/key.txt > decrypted.txt
+\end{lstlisting}
+
+\subsection{Advanced Use Cases}
+
+\subsubsection{Storing Recipients in a File}
+
+For frequently used recipients, create a recipients file:
+
+\begin{lstlisting}[style=bashstyle, caption={Using a recipients file}]
+# Create a recipients file
+cat > team_recipients.txt << EOF
+# Engineering Team Public Keys
+age1qlrfls9rlkfe4kmgxvph5n2mpdz9pj9k6cr5ewqlc62gnv96jkvs4syy  # Alice
+age1t90nl05gngh942zdkwwk3wrkgz87k2fctk5qcyxhka7ycucza3uqg39xrr  # Bob
+age1w5t2n7jqd47y5dmwn6mcgkhv6ck6x9v8yutqvv5zqm5wj7fqt79q8cq8rx  # Charlie
+EOF
+
+# Encrypt for all recipients in the file
+age --recipients-file team_recipients.txt \
+    --output confidential.txt.age confidential.txt
+\end{lstlisting}
+
+\subsubsection{Encrypting Directories}
+
+Age works on files, but can be combined with archiving tools:
+
+\begin{lstlisting}[style=bashstyle, caption={Encrypting directories}]
+# Encrypt a directory using tar
+tar czf - ~/my_project | age --recipient age1qlr... \
+    --output my_project_backup.tar.gz.age
+
+# Decrypt and extract
+age --decrypt --identity ~/.age/key.txt my_project_backup.tar.gz.age \
+    | tar xzf -
+\end{lstlisting}
+
+\subsubsection{Encrypting to SSH Keys}
+
+Age can use existing SSH keys for encryption:
+
+\begin{lstlisting}[style=bashstyle, caption={Using SSH keys}]
+# Encrypt using an SSH public key
+age --recipient "$(ssh-keygen -Y find-principals -s allowed_signers \
+    -f ~/.ssh/id_ed25519.pub)" --output file.age file.txt
+
+# Or use the ssh-rsa format directly
+age --recipient "$(cat ~/.ssh/id_rsa.pub)" --output file.age file.txt
+
+# Decrypt using SSH private key
+age --decrypt --identity ~/.ssh/id_ed25519 file.age > file.txt
+\end{lstlisting}
+
+\subsection{Integration with Version Control}
+
+Age can be integrated with Git for encrypting sensitive files in repositories:
+
+\begin{lstlisting}[style=bashstyle, caption={Git integration example}]
+# Encrypt secrets before committing
+age --recipient age1qlr... --output secrets.env.age secrets.env
+git add secrets.env.age
+git commit -m "Add encrypted secrets"
+
+# Add to .gitignore to avoid committing plaintext
+echo "secrets.env" >> .gitignore
+\end{lstlisting}
+
+\newpage
+
+\section{Best Practices and Security Considerations}
+
+\subsection{Passphrase Security}
+
+When using symmetric encryption:
+\begin{itemize}
+    \item Use strong, unique passphrases (at least 20 characters)
+    \item Consider using a passphrase manager or diceware method
+    \item Never reuse passphrases across different files containing sensitive data
+    \item Age uses scrypt for key derivation, which is resistant to brute-force attacks
+\end{itemize}
+
+\subsection{Key Management}
+
+For public-key encryption:
+\begin{itemize}
+    \item Store private keys securely with appropriate file permissions (\texttt{chmod 600})
+    \item Consider hardware security tokens (e.g., YubiKey) for high-value keys
+    \item Maintain secure backups of private keys
+    \item Regularly rotate keys for long-term use cases
+    \item Verify public key fingerprints through a separate secure channel
+\end{itemize}
+
+\subsection{File Handling}
+
+\begin{itemize}
+    \item Securely delete plaintext files after encryption using tools like \texttt{shred} or \texttt{srm}
+    \item Be aware that Age does not compress files; compress before encrypting if needed
+    \item Use \texttt{.age} extension for encrypted files to indicate their status
+    \item Consider the metadata implications: file sizes and timestamps may leak information
+\end{itemize}
+
+\subsection{Operational Security}
+
+\begin{itemize}
+    \item Age does not hide metadata (file size, modification time)
+    \item Use encrypted containers or full-disk encryption for additional protection
+    \item When using pipes, be mindful of shell history recording sensitive commands
+    \item Verify the integrity of Age binaries through checksums or signatures
+    \item Keep Age updated to benefit from security patches
+\end{itemize}
+
+\newpage
+
+\section{Conclusions}
+
+Age provides a modern, streamlined approach to file encryption that is particularly well-suited for engineering students and professionals who need secure file handling without the complexity of traditional tools like GPG.
+
+\subsection{Key Takeaways}
+
+\begin{itemize}
+    \item Age offers two encryption modes: symmetric (passphrase-based) and asymmetric (public-key)
+    \item The cryptographic foundation is solid: ChaCha20-Poly1305 for symmetric encryption and X25519 for key exchange
+    \item The tool emphasizes simplicity and ease of use without sacrificing security
+    \item Integration with existing workflows (pipes, SSH keys, version control) is straightforward
+    \item The plugin system allows for extended functionality like hardware token support
+\end{itemize}
+
+\subsection{When to Use Age}
+
+Age is ideal for:
+\begin{itemize}
+    \item Encrypting files for personal use or sharing with colleagues
+    \item Creating encrypted backups
+    \item Protecting sensitive configuration files in version control
+    \item Quick, command-line based encryption tasks
+    \item Situations where GPG's complexity is unnecessary
+\end{itemize}
+
+Age may not be suitable for scenarios requiring digital signatures, key revocation infrastructure, or compatibility with existing GPG-based workflows.
+
+\subsection{Further Resources}
+
+For more detailed information:
+\begin{itemize}
+    \item Official documentation: \url{https://age-encryption.org}
+    \item Man pages: \texttt{man age}, \texttt{man age-keygen}
+    \item RFC 7539: ChaCha20 and Poly1305 specification
+    \item Age specification: \url{https://github.com/C2SP/C2SP/blob/main/age.md}
+\end{itemize}
+
+\section*{References}
+
+\begin{enumerate}
+    \item Filippo Valsorda. \textit{Age - A simple, modern and secure file encryption tool}. \\
+    \url{https://github.com/C2SP/C2SP/blob/main/age.md}
+    
+    \item Filippo Valsorda. \textit{Age Manual Pages}. \\
+    \url{https://github.com/FiloSottile/age/blob/main/doc/age.1.html}
+    
+    \item IBM. \textit{HMAC-Based Extract-then-Expand Key Derivation Function (HKDF)}. \\
+    \url{https://www.ibm.com/docs/en/semeru-runtime-ce-z/11}
+    
+    \item RFC 7539. \textit{ChaCha20 and Poly1305 for IETF Protocols}. \\
+    \url{https://datatracker.ietf.org/doc/html/rfc7539}
+    
+    \item xarg. \textit{X25519 Key Exchange}. \\
+    \url{https://x25519.xargs.org}
+\end{enumerate}
+
+\end{document}

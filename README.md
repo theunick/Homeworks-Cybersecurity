@@ -20,3 +20,4 @@ Each homework is organized in its own directory, containing:
 - **HW01**: Cryptanalysis and cipher breaking
 - **HW02**: Binary exploitation and memory analysis  
 - **HW03**: Authenticated encryption performance comparison
+- **HW04**: Guidelines for the use of Age
