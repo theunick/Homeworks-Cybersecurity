@@ -1,0 +1,14 @@
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{DRBG} & \textbf{Avg Time (s)} & \textbf{Avg Memory (MB)} & \textbf{0s (\%)} & \textbf{1s (\%)} \\ \midrule
+ChaCha20-DRBG & 0.0314 & 22.36 & 49.63 & 50.37 \\
+AES-CTR DRBG & 0.0307 & 22.36 & 49.97 & 50.03 \\
+HMAC-DRBG & 0.1167 & 22.03 & 50.16 & 49.84 \\
+\bottomrule
+\end{tabular}
+\caption{Average performance metrics across all sequence lengths}
+\label{tab:summary}
+\end{table}

@@ -21,3 +21,4 @@ Each homework is organized in its own directory, containing:
 - **HW02**: Binary exploitation and memory analysis  
 - **HW03**: Authenticated encryption performance comparison
 - **HW04**: Guidelines for the use of Age
+- **HW05**: Secure Pseudo-Random Number Generators
