@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  bob:
+    build:
+      context: .
+      dockerfile: bob/Dockerfile
+    container_name: rps_bob
+    hostname: bob
+    networks:
+      - game_network
+    environment:
+      - BOB_HOST=0.0.0.0
+      - BOB_PORT=5555
+    ports:
+      - "5555:5555"
+    restart: unless-stopped
+
+  alice:
+    build:
+      context: .
+      dockerfile: alice/Dockerfile
+    container_name: rps_alice
+    hostname: alice
+    networks:
+      - game_network
+    environment:
+      - BOB_HOST=bob
+      - BOB_PORT=5555
+      - NUM_GAMES=3
+      - STARTUP_DELAY=3
+    depends_on:
+      - bob
+
+networks:
+  game_network:
+    driver: bridge
+    name: rps_network
