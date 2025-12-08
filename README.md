@@ -23,3 +23,4 @@ Each homework is organized in its own directory, containing:
 - **HW04**: Guidelines for the use of Age
 - **HW05**: Secure Pseudo-Random Number Generators
 - **HW06**: Secure Rock-Paper-Scissors Protocol
+- **HW07**: Secure Dice Game Protocol
